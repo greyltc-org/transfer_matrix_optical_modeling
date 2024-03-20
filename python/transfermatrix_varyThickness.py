@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # 	'Copyright' 2012 Kamil Mielczarek (kamil.m@utdallas.edu), University of Texas at Dallas
 # 	Modifications:
@@ -49,7 +49,7 @@
 # example : you have a material file named 'nk_P3HT.csv' the layer name would be 'P3HT'
 # Layer thicknesses are in nm.
 import numpy as np
-from os.path import join, isfile
+from pathlib import Path
 from math import ceil
 from scipy.interpolate import interp1d
 import pylab as pl
@@ -90,41 +90,15 @@ varyThickness = np.arange(varyStart, varyFinish + varyStep, varyStep, float)
 
 
 # HELPER FUNCTIONS
-def openFile(fname):
-    """
-    opens files and returns a list split at each new line
-    """
-    fd = []
-    if isfile(fname):
-        fn = open(fname, "r")
-        fdtmp = fn.read()
-        fdtmp = fdtmp.split("\n")
-        # clean up line endings
-        for f in fdtmp:
-            f = f.strip("\n")
-            f = f.strip("\r")
-            fd.append(f)
-        # make so doesn't return empty line at the end
-        if len(fd[-1]) == 0:
-            fd.pop(-1)
-    else:
-        print(("%s Target is not a readable file" % fname))
-    return fd
 
 
 def get_ntotal(matName, lambdas):
-    fname = join(matDir, "%s%s.csv" % (matPrefix, matName))
-    fdata = openFile(fname)[matHeader:]
+    fname = Path(__file__).parent / Path(matDir, matPrefix + matName + ".csv")
     # get data from the file
-    lambList = []
-    nList = []
-    kList = []
-    for l in fdata:
-        wl, n, k = l.split(",")
-        wl, n, k = float(wl), float(n), float(k)
-        lambList.append(wl)
-        nList.append(n)
-        kList.append(k)
+    raw_dat = np.loadtxt(fname, skiprows=1, delimiter=",")
+    lambList = raw_dat[:, 0]
+    nList = raw_dat[:, 1]
+    kList = raw_dat[:, 2]
     # make interpolation functions
     int_n = interp1d(lambList, nList)
     int_k = interp1d(lambList, kList)
@@ -161,15 +135,10 @@ def L_mat(n, d, l):
 # / HELPER FUNCTIONS
 
 # load AM1.5G Spectrum
-am15_file = join(matDir, "AM15G.csv")
-am15_data = openFile(am15_file)[1:]
-am15_xData = []
-am15_yData = []
-for l in am15_data:
-    x, y = l.split(",")
-    x, y = float(x), float(y)
-    am15_xData.append(x)
-    am15_yData.append(y)
+am15_file = Path(__file__).parent / Path(matDir, "AM15G.csv")
+am15_dat = np.loadtxt(am15_file, skiprows=1, delimiter=",")
+am15_xData = am15_dat[:, 0]
+am15_yData = am15_dat[:, 1]
 am15_interp = interp1d(am15_xData, am15_yData, "linear")
 am15_int_y = am15_interp(lambdas)
 
@@ -266,9 +235,12 @@ fig4 = pl.figure(4)
 fig4.clf()
 ax4 = fig4.add_subplot(111)
 ax4.set_ylim(ymin=0)
-ax4.set_title("Current Density obtained from 100% IQE")
+title4 = "Current Density obtained from 100% IQE"
+ax4.set_title(title4)
 ax4.set_ylabel("Current Density , mA/cm$^2$")
 ax4.set_xlabel("Layer Thickness , nm")
 ax4.set_ylim(top=ceil(sorted(Jsc)[-1]))
 ax4.plot(varyThickness, Jsc)
-fig4.show()
+plot_filename4 = Path(__file__).parent / (title4.lower().replace(" ", "_") + ".svg")
+print(f"Saving plot: {plot_filename4}")
+fig4.savefig(plot_filename4)

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # 'Copyright' 2012 Kamil Mielczarek (kamil.m@utdallas.edu), University of Texas at Dallas
 # Modifications:
@@ -69,7 +69,7 @@
 # correspond to the csv filenames in the 'matDir' ignoring the material prefix.
 # example : you have a material file named 'nk_P3HT.csv' the layer name would be 'P3HT'
 # Layer thicknesses are in nm.
-from os.path import join, isfile
+from pathlib import Path
 import pylab as pl
 import numpy as np
 from scipy.interpolate import interp1d
@@ -105,41 +105,13 @@ lambdas = np.arange(lambda_start, lambda_stop + lambda_step, lambda_step, float)
 t = thicknesses
 
 
-def openFile(fname):
-    """
-    opens files and returns a list split at each new line
-    """
-    fd = []
-    if isfile(fname):
-        fn = open(fname, "r")
-        fdtmp = fn.read()
-        fdtmp = fdtmp.split("\n")
-        # clean up line endings
-        for f in fdtmp:
-            f = f.strip("\n")
-            f = f.strip("\r")
-            fd.append(f)
-        # make so doesn't return empty line at the end
-        if len(fd[-1]) == 0:
-            fd.pop(-1)
-    else:
-        print(("%s Target is not a readable file" % fname))
-    return fd
-
-
-def get_ntotal(matName, lambdas):
-    fname = join(matDir, "%s%s.csv" % (matPrefix, matName))
-    fdata = openFile(fname)[matHeader:]
+def get_ntotal(matName: str, lambdas: list):
+    fname = Path(__file__).parent / Path(matDir, matPrefix + matName + ".csv")
     # get data from the file
-    lambList = []
-    nList = []
-    kList = []
-    for l in fdata:
-        wl, n, k = l.split(",")
-        wl, n, k = float(wl), float(n), float(k)
-        lambList.append(wl)
-        nList.append(n)
-        kList.append(k)
+    raw_dat = np.loadtxt(fname, skiprows=1, delimiter=",")
+    lambList = raw_dat[:, 0]
+    nList = raw_dat[:, 1]
+    kList = raw_dat[:, 2]
     # make interpolation functions
     int_n = interp1d(lambList, nList)
     int_k = interp1d(lambList, kList)
@@ -257,7 +229,8 @@ fig1.clf()
 
 ax1 = fig1.add_subplot(111)
 ax1.set_ylim(ymin=0)
-ax1.set_title("E-Field Intensity in Device")
+title1 = "E-Field Intensity in Device"
+ax1.set_title(title1)
 ax1.set_ylabel("Normalized |E|$^2$Intensity")
 ax1.set_xlabel("Position in Device (nm)")
 
@@ -276,7 +249,9 @@ for matind in np.arange(2, len(t) + 1):
     ax1.axvline(np.sum(t[0:matind]), linestyle=":")
     ax1.text(xpos, 0.01, layers[matind - 1], va="bottom", ha="center")
 ax1.legend(loc="upper right")
-fig1.show()
+plot_filename1 = Path(__file__).parent / (title1.lower().replace(" ", "_") + ".svg")
+print(f"Saving plot: {plot_filename1}")
+fig1.savefig(plot_filename1)
 
 # Absorption coefficient in 1/cm
 a = np.zeros((len(t), len(lambdas)))
@@ -290,7 +265,8 @@ for matind in np.arange(1, len(t)):
 fig2 = pl.figure(2)
 fig2.clf()
 ax2 = fig2.add_subplot(111)
-ax2.set_title("Fraction of Light Absorbed or Reflected")
+title2 = "Fraction of Light Absorbed or Reflected"
+ax2.set_title(title2)
 ax2.set_xlabel("Wavelength (nm)")
 ax2.set_ylabel("Light Intensity Fraction")
 Absorption = np.zeros((len(t), len(lambdas)))
@@ -303,19 +279,16 @@ for matind in np.arange(1, len(t)):
     ax2.plot(lambdas, Absorption[matind, :], label=layers[matind])
 ax2.plot(lambdas, Reflection, label="Reflection")
 ax2.legend(loc="upper right", ncol=3)
-fig2.show()
+plot_filename2 = Path(__file__).parent / (title2.lower().replace(" ", "_") + ".svg")
+print(f"Saving plot: {plot_filename2}")
+fig2.savefig(plot_filename2)
 
 if plotGeneration:
     # load and interpolate AM1.5G Data
-    am15_file = join(matDir, "AM15G.csv")
-    am15_data = openFile(am15_file)[1:]
-    am15_xData = []
-    am15_yData = []
-    for l in am15_data:
-        x, y = l.split(",")
-        x, y = float(x), float(y)
-        am15_xData.append(x)
-        am15_yData.append(y)
+    am15_file = Path(__file__).parent / Path(matDir, "AM15G.csv")
+    am15_dat = np.loadtxt(am15_file, skiprows=1, delimiter=",")
+    am15_xData = am15_dat[:, 0]
+    am15_yData = am15_dat[:, 1]
     am15_interp = interp1d(am15_xData, am15_yData, "linear")
     am15_int_y = am15_interp(lambdas)
     #
@@ -334,7 +307,8 @@ if plotGeneration:
     fig3 = pl.figure(3)
     fig3.clf()
     ax3 = fig3.add_subplot(111)
-    ax3.set_title("Generation Rate in Device")
+    title3 = "Generation Rate in Device"
+    ax3.set_title(title3)
     ax3.set_xlabel("Position in Device (nm)")
     ax3.set_ylabel("Generation Rate/sec-cm$^3$")
     ax3.set_xlim(0, t_cumsum[-1])
@@ -344,7 +318,9 @@ if plotGeneration:
         xpos = (t_cumsum[matind - 2] + t_cumsum[matind - 1]) / 2.0
         ax3.axvline(np.sum(t[0:matind]), linestyle=":")
         ax3.text(xpos, sorted(Gx[0])[0], layers[matind - 1], va="bottom", ha="center")
-    fig3.show()
+    plot_filename3 = Path(__file__).parent / (title3.lower().replace(" ", "_") + ".svg")
+    print(f"Saving plot: {plot_filename3}")
+    fig3.savefig(plot_filename3)
 
     # calculate Jsc
     Jsc = np.sum(Gx) * x_step * 1.0e-7 * q * 1.0e3
@@ -352,4 +328,4 @@ if plotGeneration:
     # calculate parasitic absorption
     parasitic_abs = 1.0 - Reflection - Absorption[activeLayer, :]
 
-    print(Jsc)
+    print(f"Short circuit current density = {Jsc:.2f} [mA]")
