@@ -329,3 +329,10 @@ if plotGeneration:
     parasitic_abs = 1.0 - Reflection - Absorption[activeLayer, :]
 
     print(f"Short circuit current density = {Jsc:.2f} [mA]")
+
+    abs_tot = Absorption.sum(0)
+    abs_active = Absorption[activeLayer, :]
+    abs_parasitic = abs_tot - abs_active
+    print(
+        f"Parasitic absorption = {abs_parasitic.sum()/(abs_tot.sum() + Reflection.sum()) * 100:.2f} [%]"
+    )
